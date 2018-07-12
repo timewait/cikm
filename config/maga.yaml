@@ -1,0 +1,26 @@
+train_dirs: ['data/tfrecord/train']
+val_dirs: ['data/tfrecord/val']
+
+train_batch_size: 256
+val_batch_size: 256
+max_seqlen: 100
+vocab_size: 5744
+embed_dim: 256
+
+model_type: 'dot_product'
+encoder_type: 'dan'
+activation: 'tanh'
+dot_inp_dnn_sizes: [-1]
+dot_resp_dnn_sizes: [-1]
+D_hidden_sizes: [512]
+
+learning_rate: 0.001
+decay_rate: 0.99
+decay_steps: 100000
+optimizer: 'adam'
+max_epoch: 10000000
+experiment_dir: 'experiment/maga'
+steps_per_info: 10
+steps_per_checkpoint: 20
+steps_per_eval: 20
+debug: False

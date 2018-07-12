@@ -125,8 +125,8 @@ if __name__ == '__main__':
     is_debug = True
     debug_count = 10
 
-    input_dir = 'data/text/train'
-    output_dir = 'data/tfrecord/train'
+    input_dir = 'data/text/val'
+    output_dir = 'data/tfrecord/val'
     vocab = load_vocab('data/dict/vocab.txt', 'utf8')
     seqlen = 100
     os.system('mkdir -p %s' % (output_dir))
