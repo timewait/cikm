@@ -139,7 +139,7 @@ class DotProductModel(Model):
     def _build_encode(self, features):
         self.inp_enc = self.encoder.build(features['inp'])
         self.resp_enc = self.encoder.build(features['resp'])
-        self.label = features['label']
+        self.label = tf.squeeze(features['label'])
 
     def _build_graph(self):
         inp_dnn = self._dnn(self.inp_enc, self.inp_dnn_sizes, 'inp_dnn')
