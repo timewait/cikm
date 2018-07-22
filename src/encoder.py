@@ -195,10 +195,8 @@ class DANEncoder(Encoder):
         self.hidden_sizes = kwargs.get('D_hidden_sizes', [300, 300, 500])
 
     def _build_graph(self, inputs_emb):
-        pad_indicator = pad_indicator_in_embedding(inputs_emb)
-        nonpad_cnt = tf.maximum(tf.reduce_sum(pad_indicator, axis=1, keep_dims=True), 1e-9)
-        inputs_avg = tf.reduce_sum(inputs_emb, 1) / tf.sqrt(nonpad_cnt)
-        inp = inputs_avg
+        inp = tf.reduce_sum(inputs_emb, 1)
+        inp = tf.nn.softsign(inp)
         for i, hidden_size in enumerate(self.hidden_sizes):
             if hidden_size <= 0:
                 continue
