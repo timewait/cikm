@@ -6,6 +6,7 @@ from pathos.multiprocessing import ProcessingPool as Pool
 import tensorflow as tf
 from collections import OrderedDict
 
+
 def load_vocab(path, encoding='utf8'):
     vocab = {}
     vocab['idx2word'] = {}
@@ -20,8 +21,10 @@ def load_vocab(path, encoding='utf8'):
     print 'vocab size: %d' % (len(vocab['word2idx']))
     return vocab
 
+
 def text_preprocess(text, encoding):
     return text.lower().decode(encoding, 'ignore')
+
 
 def sentence_to_ids(sentence, vocab, seqlen, skip=False, with_pad=False):
     assert type(sentence) == list
@@ -54,8 +57,8 @@ def sentence_to_ids(sentence, vocab, seqlen, skip=False, with_pad=False):
         sentence_ids = pad(sentence_ids)
     return sentence_ids[:seqlen]
 
-def loop_files_in_dir(input_dir, output_dir, loop_fn):
 
+def loop_files_in_dir(input_dir, output_dir, loop_fn):
     def replace_postfix(x):
         if x.endswith('.txt'):
             x = x[:-4]
@@ -83,7 +86,6 @@ def loop_files_in_dir(input_dir, output_dir, loop_fn):
 
 
 def make_dot_product_tfrecord(input_dir, output_dir, vocab, seqlen, sep='\t', encoding='utf8'):
-
     def get_dot_product_example(inp, resp, label):
         record_features = {}
         record_features['inp'] = tf.train.Feature(int64_list=tf.train.Int64List(value=list(inp)))
@@ -119,7 +121,6 @@ def make_dot_product_tfrecord(input_dir, output_dir, vocab, seqlen, sep='\t', en
 
 
 if __name__ == '__main__':
-
     global is_debug
     global debug_count
     is_debug = True

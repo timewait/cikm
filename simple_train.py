@@ -57,7 +57,7 @@ def train_and_eval(hparams):
     feat_concat = tf.concat([inp_enc, resp_enc, inp_minus_resp, inp_mul_resp], axis=-1)
     fc_out = tf.layers.dense(feat_concat, 512, name='fc')
     logits = tf.squeeze(tf.layers.dense(fc_out, 1, name='logits'))
-    predictions = tf.where(logits > 0, tf.ones_like(logits), tf.zeros_like(logits))
+    predictions = tf.where(logits > 0, x=tf.ones_like(logits), y=tf.zeros_like(logits))
     loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(labels=label, logits=logits))
     train_op = tf.train.AdamOptimizer(hparams.learning_rate).minimize(loss)
     auc, auc_update_op = tf.metrics.auc(labels=label, predictions=predictions)
