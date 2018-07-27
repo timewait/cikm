@@ -3,7 +3,7 @@ import os
 import random
 import tensorflow as tf
 
-from model import DANClassifier
+from models.DANClassifier import DANClassifier
 
 
 # 1. input, output
@@ -42,58 +42,69 @@ def parser(record):
         'resp': tf.VarLenFeature(tf.int64),
         'label': tf.FixedLenFeature([1], tf.int64)
     })
-    return {'inp': parsed['inp'], 'resp': parsed['label']}, parsed['label']
+    return {'inp': parsed['inp'], 'resp': parsed['label']}, tf.cast(tf.squeeze(parsed['label']), dtype=tf.float32)
 
 
 def train_input_fn(params):
-    dataset = tf.data.TFRecordDataset(params.get('train_dirs'))
-    dataset.map(parser).shuffle(buffer_size=params.get('buffer_size', 20000)).batch(
+    dataset = tf.data.TFRecordDataset(params.get('train_dirs'), 'GZIP')
+    dataset = dataset.map(parser).shuffle(buffer_size=params.get('buffer_size', 20000)).batch(
         params.get('batch_size', 256)).repeat(None)
-    return dataset.make_one_shot_iterator()
+    return dataset
 
 
 def val_input_fn(params):
-    dataset = tf.data.TFRecordDataset(params.get('val_dirs'))
-    dataset.map(parser).shuffle(buffer_size=params.get('val_buffer_size', 10000)).batch(
-        params.get('val_batch_size', 256)).repeat(params.get('epoch', 0))
-    return dataset.make_one_shot_iterator()
+    dataset = tf.data.TFRecordDataset(params.get('val_dirs'), 'GZIP')
+    dataset = dataset.map(parser).shuffle(buffer_size=params.get('buffer_size', 20000)).batch(
+        params.get('batch_size', 256)).repeat(10)
+    return dataset
 
 
 class CIKMModel(DANClassifier):
 
-    def embedding_layer(self, features, columns):
-        inp_categorical_column = tf.feature_column.categorical_column_with_vocabulary_file(key="inp", dtype=tf.int32,
-                                                                                           vocabulary_file='',
-                                                                                           default_value=0)
-        inp_embedding_column = tf.feature_column.embedding_column(categorical_column=inp_categorical_column,
-                                                                  dimension=8,
-                                                                  combiner='sqrtn', trainable=True,
-                                                                  initializer=tf.truncated_normal_initializer(mean=0.0,
-                                                                                                              stddev=0.02))
-        resp_categorical_column = tf.feature_column.categorical_column_with_vocabulary_file(key="resp", dtype=tf.int32,
-                                                                                            vocabulary_file='',
-                                                                                            default_value=0)
-        resp_embedding_column = tf.feature_column.embedding_column(categorical_column=resp_categorical_column,
-                                                                   dimension=8,
-                                                                   combiner='sqrtn', trainable=True,
-                                                                   initializer=tf.truncated_normal_initializer(mean=0.0,
-                                                                                                               stddev=0.02))
+    def __init__(self):
+        super(CIKMModel, self).__init__()
 
-        with tf.variable_scope("DAN", reuse=tf.AUTO_REUSE):
-            inp_dense = tf.feature_column.input_layer(features, [inp_embedding_column])
-            resp_dense = tf.feature_column.input_layer(features, [resp_embedding_column])
+    def embedding_dense(self, features, column, vocab_file):
+        categorical_column = tf.feature_column.categorical_column_with_vocabulary_file(key=column, dtype=tf.int32,
+                                                                                       vocabulary_file=vocab_file,
+                                                                                       default_value=0)
+
+        embedding_column = tf.feature_column.embedding_column(categorical_column=categorical_column,
+                                                              dimension=256,
+                                                              combiner='sqrtn', trainable=True,
+                                                              initializer=tf.truncated_normal_initializer(mean=0.0,
+                                                                                                          stddev=0.02))
+        input_layer = tf.feature_column.input_layer(features, [embedding_column])
+        net = tf.reduce_mean(input_layer, axis=1)
+        for i, hidden_size in enumerate([512]):
+            if hidden_size <= 0:
+                continue
+            net = tf.layers.dense(inputs=input_layer, units=hidden_size, activation=tf.nn.tanh, use_bias=False,
+                                  name='fc_%d' % i)
+        return net
+
+    def layers(self, features, vocab_file):
+        inp_dense = self.embedding_dense(features, 'inp', vocab_file)
+        resp_dense = self.embedding_dense(features, 'resp', vocab_file)
+
+        with tf.variable_scope("dan", reuse=tf.AUTO_REUSE):
             inp_minus_resp = tf.abs(inp_dense - resp_dense)
             inp_mul_resp = inp_dense * resp_dense
-            net = tf.layers.dense(tf.concat([inp_dense, resp_dense, inp_minus_resp, inp_mul_resp], axis=-1))
+            net = tf.layers.dense(tf.concat([inp_dense, resp_dense, inp_minus_resp, inp_mul_resp], axis=-1), units=512)
             return net
 
 
 def main():
-    params = {}
+    params = {
+        'train_dirs': ['/Users/michell/AnacondaProjects/koubei/cikm/data/tfrecord/train/cikm_en_train.tfrecord'],
+        'val_dirs': ['/Users/michell/AnacondaProjects/koubei/cikm/data/tfrecord/val/cikm_sp_val.tfrecord'],
+        'vocab_file': '/Users/michell/AnacondaProjects/koubei/cikm/data/dict/vocab_ids.txt'
+    }
     model = CIKMModel().build(params)
-    model.train(input_fn=train_input_fn, steps=params.get("steps", 1000))
-    eval_result = model.eval(input_fn=val_input_fn)
-    print('\nTest set accuracy: {accuracy:0.3f}\n'.format(**eval_result))
+    for i in range(100):
+        model.train(input_fn=lambda: train_input_fn(params), steps=params.get("steps", 20))
+        eval_result = model.evaluate(input_fn=lambda: val_input_fn(params))
+        print(eval_result)
     # predictions = model.predict(input_fn=train_input_fn, labels=None, batch_size=params.get("batch_size", 50))
     # print predictions
 
