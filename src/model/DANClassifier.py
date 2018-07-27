@@ -20,7 +20,7 @@ class DANClassifier(object):
             for i, hidden in enumerate(params.get('hiddens', [512])):
                 if hidden <= 0:
                     continue
-            # TODO make
+            # TODO make activation, bias configurable
             net = tf.layers.dense(inputs=net, units=hidden, activation=tf.nn.tanh, use_bias=False, name="fc_%d" % i)
 
         logits = tf.squeeze(tf.layers.dense(net, params.get("n_classes", 1), name='logits'))
