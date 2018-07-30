@@ -65,27 +65,30 @@ class CIKMModel(DANClassifier):
         super(CIKMModel, self).__init__()
 
     def embedding_dense(self, features, column, vocab_file):
-        categorical_column = tf.feature_column.categorical_column_with_vocabulary_file(key=column, dtype=tf.int32,
-                                                                                       vocabulary_file=vocab_file,
-                                                                                       default_value=0)
+        with tf.name_scope('embedding_%s' % column):
+            categorical_column = tf.feature_column.categorical_column_with_vocabulary_file(key=column, dtype=tf.int32,
+                                                                                           vocabulary_file=vocab_file,
+                                                                                           default_value=0)
 
-        embedding_column = tf.feature_column.embedding_column(categorical_column=categorical_column,
-                                                              dimension=256,
-                                                              combiner='sqrtn', trainable=True,
-                                                              initializer=tf.truncated_normal_initializer(mean=0.0,
-                                                                                                          stddev=0.02))
-        input_layer = tf.feature_column.input_layer(features, [embedding_column])
-        net = tf.reduce_mean(input_layer, axis=1)
+            embedding_column = tf.feature_column.embedding_column(categorical_column=categorical_column,
+                                                                  dimension=256,
+                                                                  combiner='sqrtn', trainable=True,
+                                                                  initializer=tf.truncated_normal_initializer(mean=0.0,
+                                                                                                              stddev=0.02))
+            input_layer = tf.feature_column.input_layer(features, [embedding_column])
+        with tf.name_scope('average_%s' % column):
+            net = tf.reduce_mean(input_layer, axis=1, keep_dims=True)
         for i, hidden_size in enumerate([512]):
             if hidden_size <= 0:
                 continue
-            net = tf.layers.dense(inputs=input_layer, units=hidden_size, activation=tf.nn.tanh, use_bias=False,
+            net = tf.layers.dense(inputs=net, units=hidden_size, activation=tf.nn.tanh, use_bias=True,
                                   name='fc_%d' % i)
         return net
 
     def layers(self, features, vocab_file):
-        inp_dense = self.embedding_dense(features, 'inp', vocab_file)
-        resp_dense = self.embedding_dense(features, 'resp', vocab_file)
+        with tf.variable_scope('input'):
+            inp_dense = self.embedding_dense(features, 'inp', vocab_file)
+            resp_dense = self.embedding_dense(features, 'resp', vocab_file)
 
         with tf.variable_scope("dan", reuse=tf.AUTO_REUSE):
             inp_minus_resp = tf.abs(inp_dense - resp_dense)
