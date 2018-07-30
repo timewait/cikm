@@ -42,7 +42,7 @@ def parser(record):
         'resp': tf.VarLenFeature(tf.int64),
         'label': tf.FixedLenFeature([1], tf.int64)
     })
-    return {'inp': parsed['inp'], 'resp': parsed['label']}, tf.cast(tf.squeeze(parsed['label']), dtype=tf.float32)
+    return {'inp': parsed['inp'], 'resp': parsed['resp']}, tf.cast(tf.squeeze(parsed['label']), dtype=tf.float32)
 
 
 def train_input_fn(params):
